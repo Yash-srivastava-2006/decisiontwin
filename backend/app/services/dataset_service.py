@@ -95,13 +95,17 @@ class DatasetService:
 
     def preview_dataset(self, dataset_id: UUID) -> dict[str, object]:
         dataset = self.get_dataset(dataset_id)
-        dataframe = self._load_dataframe(Path(dataset.file_path))
+        dataframe = self.load_dataset_dataframe(dataset)
         return {
             "columns": dataset.columns,
             "dtypes": dataset.dtypes,
             "preview": dataframe.head(PREVIEW_ROWS).to_dict(orient="records"),
             "summary": {"rows": dataset.total_rows, "columns": dataset.total_columns},
         }
+
+    def load_dataset_dataframe(self, dataset: Dataset) -> pd.DataFrame:
+        """Load the stored CSV for an existing dataset record."""
+        return self._load_dataframe(Path(dataset.file_path))
 
     def _validate_upload_file(self, file: UploadFile) -> None:
         if not file.filename:
@@ -130,8 +134,14 @@ class DatasetService:
         return ParsedDataset(dataframe=dataframe, columns=columns, dtypes=dtypes, missing_values=missing_values)
 
     def _load_dataframe(self, file_path: Path) -> pd.DataFrame:
+        if not file_path.exists():
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Stored dataset file not found")
+
         try:
             return pd.read_csv(file_path)
+        except (pd.errors.EmptyDataError, pd.errors.ParserError, UnicodeDecodeError) as exc:
+            logger.exception("Malformed stored CSV at %s", file_path)
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Stored dataset CSV is invalid") from exc
         except Exception as exc:
             logger.exception("Failed to load dataset CSV from %s", file_path)
             raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Stored dataset could not be read") from exc
