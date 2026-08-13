@@ -116,9 +116,24 @@ class DatasetService:
         if content_type not in {"text/csv", "application/csv", "application/vnd.ms-excel", "text/plain", ""}:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Only CSV files are allowed")
 
+    def _read_csv(self, source: StringIO | Path) -> pd.DataFrame:
+        """Read a CSV while automatically detecting common delimiters."""
+        try:
+            if isinstance(source, Path):
+                return pd.read_csv(source, sep=None, engine="python")
+
+            return pd.read_csv(source, sep=None, engine="python")
+
+        except (pd.errors.EmptyDataError, pd.errors.ParserError, UnicodeDecodeError) as exc:
+            logger.exception("Failed to parse CSV")
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Malformed CSV file",
+            ) from exc
+        
     def _parse_csv(self, raw_bytes: bytes) -> ParsedDataset:
         try:
-            dataframe = pd.read_csv(StringIO(raw_bytes.decode("utf-8-sig")))
+            dataframe = self._read_csv(StringIO(raw_bytes.decode("utf-8-sig")))
         except UnicodeDecodeError as exc:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="CSV file must be UTF-8 encoded") from exc
         except Exception as exc:
@@ -138,7 +153,7 @@ class DatasetService:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Stored dataset file not found")
 
         try:
-            return pd.read_csv(file_path)
+            return self._read_csv(file_path)
         except (pd.errors.EmptyDataError, pd.errors.ParserError, UnicodeDecodeError) as exc:
             logger.exception("Malformed stored CSV at %s", file_path)
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Stored dataset CSV is invalid") from exc

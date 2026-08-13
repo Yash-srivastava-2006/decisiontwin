@@ -1,0 +1,4 @@
+﻿import { Card } from '../components/common/Card'
+import { useActiveDataset } from '../context/ActiveDatasetContext'
+export function SettingsPage() { const { activeDataset } = useActiveDataset(); return <div className="dataset-page"><div className="page-titlebar"><div><span className="section-eyebrow">Settings</span><h1>Workspace preferences</h1><p>Application-level options for this DecisionTwin AI workspace.</p></div></div><Card title="Data display" subtitle="Current preferences are applied locally in this browser."><div className="settings-list"><div><strong>Active dataset</strong><span>{activeDataset?.name || 'No dataset selected'}</span></div><div><strong>Analytics service</strong><span className="settings-status">Configured through VITE_API_BASE_URL</span></div><div><strong>Theme</strong><span>DecisionTwin light workspace</span></div></div></Card></div> }
+
