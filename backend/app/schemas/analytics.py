@@ -161,3 +161,75 @@ class AnalyticsCollectionResponse(BaseModel):
     status: str = "success"
     message: str
     data: Any
+
+class HistogramBin(BaseModel):
+    label: str
+    count: int
+    start: float
+    end: float
+
+class DistributionAnalysis(BaseModel):
+    column: str
+    count: int
+    mean: float | None
+    median: float | None
+    min: float | None
+    max: float | None
+    standard_deviation: float | None
+    q1: float | None
+    q2: float | None
+    q3: float | None
+    histogram: list[HistogramBin]
+
+class OutlierAnalysis(BaseModel):
+    column: str
+    lower_bound: float | None
+    upper_bound: float | None
+    outlier_count: int
+    outlier_percentage: float
+    values: list[float]
+
+class CategoryPerformanceItem(BaseModel):
+    category: str
+    count: int
+    sum: float
+    average: float
+    min: float
+    max: float
+
+class CategoryPerformanceResponse(BaseModel):
+    category_column: str | None = None
+    metric_column: str | None = None
+    items: list[CategoryPerformanceItem] = Field(default_factory=list)
+    message: str | None = None
+
+class TrendPoint(BaseModel):
+    date: str
+    value: float
+
+class TrendResponse(BaseModel):
+    date_column: str | None = None
+    metric_column: str | None = None
+    granularity: str
+    points: list[TrendPoint] = Field(default_factory=list)
+    message: str | None = None
+
+class RankingItem(BaseModel):
+    category: str
+    metric: str
+    value: float
+    rank: int
+
+class RankingResponse(BaseModel):
+    category_column: str | None = None
+    metric_column: str | None = None
+    direction: str
+    items: list[RankingItem] = Field(default_factory=list)
+    message: str | None = None
+
+class CorrelationPair(BaseModel):
+    column_a: str
+    column_b: str
+    correlation: float
+    absolute_correlation: float
+    strength: str

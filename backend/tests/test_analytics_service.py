@@ -176,3 +176,17 @@ def test_invalid_dataset(sample_dataframe: pd.DataFrame, analytics_service: Anal
         analytics_service.profile_dataset(dataset.id)
 
     assert exc_info.value.status_code == 400
+
+def test_advanced_analytics(loaded_service: AnalyticsService, dataset: Dataset):
+    assert loaded_service.distributions(dataset.id)[0].histogram
+    assert any(item.column == 'revenue' for item in loaded_service.outliers(dataset.id))
+    performance = loaded_service.category_performance(dataset.id, 'category', 'revenue')
+    assert performance.items and performance.items[0].category == 'A'
+    assert len(loaded_service.rankings(dataset.id, 2, 'bottom', 'category', 'revenue').items) == 2
+    assert loaded_service.trends(dataset.id).message
+
+def test_advanced_unsupported_structure(analytics_service: AnalyticsService, dataset: Dataset, monkeypatch):
+    monkeypatch.setattr(analytics_service, 'get_dataset', lambda _: dataset)
+    monkeypatch.setattr(analytics_service, '_load_dataframe', lambda _: pd.DataFrame({'label': ['a', 'b']}))
+    assert analytics_service.distributions(dataset.id) == []
+    assert analytics_service.category_performance(dataset.id).message

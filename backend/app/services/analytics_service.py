@@ -1,4 +1,4 @@
-"""Dataset analytics and profiling service."""
+﻿"""Dataset analytics and profiling service."""
 
 from __future__ import annotations
 
@@ -19,6 +19,7 @@ from app.schemas.analytics import (
     CategoricalValueCount,
     ColumnProfile,
     CorrelationResponse,
+    DistributionAnalysis, HistogramBin, OutlierAnalysis, CategoryPerformanceResponse, CategoryPerformanceItem, TrendResponse, TrendPoint, RankingResponse, RankingItem, CorrelationPair,
     DatasetProfile,
     InsightItem,
     NumericStatistics,
@@ -38,6 +39,7 @@ from app.utils.analytics import (
     detect_business_metric_column,
     detect_column_type_counts,
     is_high_cardinality,
+    infer_datetime_column,
     is_potential_identifier,
     safe_float,
     safe_numeric_series,
@@ -493,6 +495,67 @@ class AnalyticsService:
 
         return insights
 
+
+    def distributions(self, dataset_id: UUID) -> list[DistributionAnalysis]:
+        _, dataframe, _ = self.profile_dataset(dataset_id)
+        result: list[DistributionAnalysis] = []
+        for column in dataframe.columns:
+            series = safe_numeric_series(dataframe[column])
+            if series.empty:
+                continue
+            counts, edges = np.histogram(series, bins=min(12, max(1, int(np.sqrt(len(series))))))
+            result.append(DistributionAnalysis(column=str(column), count=int(series.count()), mean=safe_float(series.mean()), median=safe_float(series.median()), min=safe_float(series.min()), max=safe_float(series.max()), standard_deviation=safe_float(series.std(ddof=1) if len(series) > 1 else None), q1=safe_float(series.quantile(.25)), q2=safe_float(series.quantile(.5)), q3=safe_float(series.quantile(.75)), histogram=[HistogramBin(label=f'{edges[i]:.2f}–{edges[i + 1]:.2f}', start=float(edges[i]), end=float(edges[i + 1]), count=int(count)) for i, count in enumerate(counts)]))
+        return result
+
+    def outliers(self, dataset_id: UUID) -> list[OutlierAnalysis]:
+        _, dataframe, _ = self.profile_dataset(dataset_id)
+        result: list[OutlierAnalysis] = []
+        for column in dataframe.columns:
+            series = safe_numeric_series(dataframe[column])
+            if series.empty:
+                continue
+            q1, q3 = float(series.quantile(.25)), float(series.quantile(.75)); iqr = q3 - q1
+            lower, upper = q1 - 1.5 * iqr, q3 + 1.5 * iqr
+            values = series[(series < lower) | (series > upper)]
+            result.append(OutlierAnalysis(column=str(column), lower_bound=safe_float(lower), upper_bound=safe_float(upper), outlier_count=int(values.count()), outlier_percentage=round(float(values.count() / len(series) * 100), 2), values=[float(value) for value in values.head(10)]))
+        return result
+
+    def category_performance(self, dataset_id: UUID, category_column: str | None = None, metric_column: str | None = None) -> CategoryPerformanceResponse:
+        _, dataframe, _ = self.profile_dataset(dataset_id)
+        category_column = category_column or next((str(c) for c in dataframe.columns if classify_column(dataframe[c])['is_categorical'] and not is_potential_identifier(str(c), dataframe[c])), None)
+        metric_column = metric_column or detect_business_metric_column(list(dataframe.columns), REVENUE_KEYWORDS) or next((str(c) for c in dataframe.columns if not safe_numeric_series(dataframe[c]).empty), None)
+        if not category_column or not metric_column or category_column not in dataframe or metric_column not in dataframe:
+            return CategoryPerformanceResponse(message='A categorical dimension and numeric metric are required.')
+        frame = pd.DataFrame({'category': dataframe[category_column].fillna('<missing>').astype(str), 'metric': pd.to_numeric(dataframe[metric_column], errors='coerce')}).dropna()
+        grouped = frame.groupby('category')['metric'].agg(['count', 'sum', 'mean', 'min', 'max']).sort_values('sum', ascending=False).head(20)
+        return CategoryPerformanceResponse(category_column=category_column, metric_column=metric_column, items=[CategoryPerformanceItem(category=str(index), count=int(row['count']), sum=float(row['sum']), average=float(row['mean']), min=float(row['min']), max=float(row['max'])) for index, row in grouped.iterrows()])
+
+    def trends(self, dataset_id: UUID, granularity: str = 'monthly', metric_column: str | None = None) -> TrendResponse:
+        _, dataframe, _ = self.profile_dataset(dataset_id)
+        date_column = next((str(c) for c in dataframe.columns if pd.api.types.is_datetime64_any_dtype(dataframe[c]) or infer_datetime_column(dataframe[c])), None)
+        metric_column = metric_column or detect_business_metric_column(list(dataframe.columns), REVENUE_KEYWORDS) or next((str(c) for c in dataframe.columns if not safe_numeric_series(dataframe[c]).empty), None)
+        if not date_column or not metric_column: return TrendResponse(granularity=granularity, message='No usable datetime column and numeric metric were detected.')
+        frame = pd.DataFrame({'date': pd.to_datetime(dataframe[date_column], errors='coerce'), 'value': pd.to_numeric(dataframe[metric_column], errors='coerce')}).dropna()
+        if frame.empty: return TrendResponse(granularity=granularity, message='No valid dated values are available.')
+        frequency = {'daily':'D','weekly':'W-MON','monthly':'MS'}.get(granularity, 'MS')
+        grouped = frame.set_index('date')['value'].resample(frequency).sum()
+        return TrendResponse(date_column=date_column, metric_column=metric_column, granularity=granularity, points=[TrendPoint(date=index.strftime('%Y-%m-%d'), value=float(value)) for index, value in grouped.items()])
+
+    def rankings(self, dataset_id: UUID, top_n: int = 10, direction: str = 'top', category_column: str | None = None, metric_column: str | None = None) -> RankingResponse:
+        performance = self.category_performance(dataset_id, category_column, metric_column)
+        if not performance.category_column or not performance.metric_column: return RankingResponse(direction=direction, message=performance.message)
+        items = sorted(performance.items, key=lambda item: item.sum, reverse=direction != 'bottom')[:max(1, min(top_n, 50))]
+        return RankingResponse(category_column=performance.category_column, metric_column=performance.metric_column, direction=direction, items=[RankingItem(category=item.category, metric=performance.metric_column, value=item.sum, rank=index + 1) for index, item in enumerate(items)])
+
+    def correlation_pairs(self, dataset_id: UUID) -> list[CorrelationPair]:
+        response = self.correlation(dataset_id); pairs: list[CorrelationPair] = []
+        for i, left in enumerate(response.columns):
+            for j in range(i + 1, len(response.columns)):
+                value = response.matrix[i][j] if response.matrix else None
+                if value is None: continue
+                absolute = abs(value); strength = 'strong' if absolute >= .8 else 'moderate' if absolute >= .5 else 'weak'
+                pairs.append(CorrelationPair(column_a=left, column_b=response.columns[j], correlation=value, absolute_correlation=absolute, strength=strength))
+        return sorted(pairs, key=lambda item: item.absolute_correlation, reverse=True)
     def _count_high_cardinality_columns(self, dataframe: pd.DataFrame) -> int:
         return sum(1 for column in dataframe.columns if is_high_cardinality(dataframe[column]))
 
@@ -502,3 +565,5 @@ class AnalyticsService:
         if ratio >= 0.05:
             return "medium"
         return "low"
+
+

@@ -172,3 +172,27 @@ def get_analytics(
         message="Dataset analytics generated.",
         data=data,
     )
+
+@router.get('/{dataset_id}/distributions', response_model=AnalyticsCollectionResponse, summary='Get numeric distributions')
+def get_distributions(dataset_id: UUID, service: AnalyticsService = Depends(get_analytics_service)) -> AnalyticsCollectionResponse:
+    return AnalyticsCollectionResponse(message='Distribution analysis generated.', data=service.distributions(dataset_id))
+
+@router.get('/{dataset_id}/outliers', response_model=AnalyticsCollectionResponse, summary='Detect numeric outliers')
+def get_outliers(dataset_id: UUID, service: AnalyticsService = Depends(get_analytics_service)) -> AnalyticsCollectionResponse:
+    return AnalyticsCollectionResponse(message='Outlier analysis generated.', data=service.outliers(dataset_id))
+
+@router.get('/{dataset_id}/category-performance', response_model=AnalyticsCollectionResponse, summary='Get category performance')
+def get_category_performance(dataset_id: UUID, category_column: str | None = None, metric_column: str | None = None, service: AnalyticsService = Depends(get_analytics_service)) -> AnalyticsCollectionResponse:
+    return AnalyticsCollectionResponse(message='Category performance generated.', data=service.category_performance(dataset_id, category_column, metric_column))
+
+@router.get('/{dataset_id}/trends', response_model=AnalyticsCollectionResponse, summary='Get time trend')
+def get_trends(dataset_id: UUID, granularity: str = 'monthly', metric_column: str | None = None, service: AnalyticsService = Depends(get_analytics_service)) -> AnalyticsCollectionResponse:
+    return AnalyticsCollectionResponse(message='Trend analysis generated.', data=service.trends(dataset_id, granularity, metric_column))
+
+@router.get('/{dataset_id}/rankings', response_model=AnalyticsCollectionResponse, summary='Get category rankings')
+def get_rankings(dataset_id: UUID, top_n: int = 10, direction: str = 'top', category_column: str | None = None, metric_column: str | None = None, service: AnalyticsService = Depends(get_analytics_service)) -> AnalyticsCollectionResponse:
+    return AnalyticsCollectionResponse(message='Rankings generated.', data=service.rankings(dataset_id, top_n, direction, category_column, metric_column))
+
+@router.get('/{dataset_id}/correlation-pairs', response_model=AnalyticsCollectionResponse, summary='Get ranked correlation pairs')
+def get_correlation_pairs(dataset_id: UUID, service: AnalyticsService = Depends(get_analytics_service)) -> AnalyticsCollectionResponse:
+    return AnalyticsCollectionResponse(message='Correlation pairs generated.', data=service.correlation_pairs(dataset_id))
