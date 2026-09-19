@@ -110,3 +110,11 @@ export interface AnalyticsSummary {
   kpis: BusinessKPIs
   insights: InsightItem[]
 }
+export interface HistogramBin { label:string; count:number; start:number; end:number }
+export interface DistributionAnalysis { column:string; count:number; mean:number|null; median:number|null; min:number|null; max:number|null; standard_deviation:number|null; q1:number|null; q2:number|null; q3:number|null; histogram:HistogramBin[] }
+export interface OutlierAnalysis { column:string; lower_bound:number|null; upper_bound:number|null; outlier_count:number; outlier_percentage:number; values:number[] }
+export interface CategoryPerformanceItem { category:string; count:number; sum:number; average:number; min:number; max:number }
+export interface CategoryPerformanceResponse { category_column:string|null; metric_column:string|null; items:CategoryPerformanceItem[]; message:string|null }
+export interface TrendResponse { date_column:string|null; metric_column:string|null; granularity:string; points:{date:string;value:number}[]; message:string|null }
+export interface RankingResponse { category_column:string|null; metric_column:string|null; direction:string; items:{category:string;metric:string;value:number;rank:number}[]; message:string|null }
+export interface CorrelationPair { column_a:string; column_b:string; correlation:number; absolute_correlation:number; strength:string }

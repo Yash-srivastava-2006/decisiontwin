@@ -7,6 +7,7 @@ import { UploadPage } from './pages/UploadPage'
 import { AnalyticsPage } from './pages/AnalyticsPage'
 import { InsightsPage } from './pages/InsightsPage'
 import { SettingsPage } from './pages/SettingsPage'
+import { SimulatorPage } from './pages/SimulatorPage'
 
 function App() {
   return (
@@ -18,6 +19,7 @@ function App() {
         <Route path="/upload" element={<UploadPage />} />
         <Route path="/analytics" element={<AnalyticsPage />} />
         <Route path="/insights" element={<InsightsPage />} />
+        <Route path="/simulator" element={<SimulatorPage />} />
         <Route path="/settings" element={<SettingsPage />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>

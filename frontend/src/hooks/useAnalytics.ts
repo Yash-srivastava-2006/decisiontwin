@@ -96,3 +96,4 @@ export function useDatasetAnalytics(datasetId?: string) {
     enabled: Boolean(datasetId),
   })
 }
+export function useAdvancedQuery<T>(key: string, datasetId: string | undefined, request: () => Promise<T>) { return useQuery({ queryKey:['analytics',datasetId,key], queryFn:request, enabled:Boolean(datasetId) }) }

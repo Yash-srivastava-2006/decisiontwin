@@ -1,6 +1,6 @@
 ﻿import type { ReactNode } from 'react'
 import { Link, NavLink, useNavigate } from 'react-router-dom'
-import { BarChart3, ChevronDown, LayoutDashboard, Sparkles, Table2, Upload } from 'lucide-react'
+import { BarChart3, ChevronDown, FlaskConical, LayoutDashboard, Sparkles, Table2, Upload } from 'lucide-react'
 import { useDatasets } from '../../hooks/useDataset'
 import { useActiveDataset } from '../../context/ActiveDatasetContext'
 import { formatDateTime, formatInteger } from '../../utils/format'
@@ -11,6 +11,7 @@ const navigation = [
   { label: 'Datasets', to: '/datasets', icon: Table2 },
   { label: 'Analytics', to: '/analytics', icon: BarChart3 },
   { label: 'Insights', to: '/insights', icon: Sparkles },
+  { label: 'Simulator', to: '/simulator', icon: FlaskConical },
 ]
 
 export function AppShell({ children }: AppShellProps) {

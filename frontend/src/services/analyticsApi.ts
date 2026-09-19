@@ -97,3 +97,9 @@ export function getDatasetAnalytics(datasetId: string): Promise<AnalyticsSummary
     }),
   )
 }
+export function getDistributions(id:string){return unwrapResponse(requestJson<ApiResponse<import('../types/analytics').DistributionAnalysis[]>>({method:'GET',url:`/api/v1/datasets/${id}/distributions`}))}
+export function getOutliers(id:string){return unwrapResponse(requestJson<ApiResponse<import('../types/analytics').OutlierAnalysis[]>>({method:'GET',url:`/api/v1/datasets/${id}/outliers`}))}
+export function getCategoryPerformance(id:string,category?:string,metric?:string){return unwrapResponse(requestJson<ApiResponse<import('../types/analytics').CategoryPerformanceResponse>>({method:'GET',url:`/api/v1/datasets/${id}/category-performance`,params:{category_column:category,metric_column:metric}}))}
+export function getTrends(id:string,granularity:string){return unwrapResponse(requestJson<ApiResponse<import('../types/analytics').TrendResponse>>({method:'GET',url:`/api/v1/datasets/${id}/trends`,params:{granularity}}))}
+export function getRankings(id:string,direction:string,topN:number){return unwrapResponse(requestJson<ApiResponse<import('../types/analytics').RankingResponse>>({method:'GET',url:`/api/v1/datasets/${id}/rankings`,params:{direction,top_n:topN}}))}
+export function getCorrelationPairs(id:string){return unwrapResponse(requestJson<ApiResponse<import('../types/analytics').CorrelationPair[]>>({method:'GET',url:`/api/v1/datasets/${id}/correlation-pairs`}))}
